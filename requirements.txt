@@ -2,20 +2,20 @@
 
 # pytorch-3d-r2n2/test.py: 6
 # pytorch-3d-r2n2/train.py: 13
-ConfigArgParse == 0.14.0
+ConfigArgParse == 1.7
 
 # pytorch-3d-r2n2/dataset.py: 7
-Pillow == 9.3.0
+Pillow == 10.2.0
 
 # pytorch-3d-r2n2/binvox_rw.py: 65
 # pytorch-3d-r2n2/dataset.py: 8
 # pytorch-3d-r2n2/lib/test_minibatch.py: 4
 # pytorch-3d-r2n2/lib/validate.py: 3
 # pytorch-3d-r2n2/utils.py: 1
-numpy == 1.22.0
+numpy == 1.26.0
 
 # pytorch-3d-r2n2/train.py: 9
-tensorboardX == 1.7
+tensorboardX == 2.6
 
 # pytorch-3d-r2n2/dataset.py: 4,6
 # pytorch-3d-r2n2/lib/resume.py: 1
@@ -25,9 +25,9 @@ tensorboardX == 1.7
 # pytorch-3d-r2n2/network.py: 1
 # pytorch-3d-r2n2/test.py: 3
 # pytorch-3d-r2n2/train.py: 4,5,6,7
-torch == 1.1.0
+torch == 2.2.2
 
 # pytorch-3d-r2n2/dataset.py: 5
 # pytorch-3d-r2n2/test.py: 4
 # pytorch-3d-r2n2/train.py: 8,10
-torchvision == 0.3.0
+torchvision == 0.17.2
