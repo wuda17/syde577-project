@@ -27,8 +27,9 @@ def validate(val_loader, encoder, convrnn, decoder, device=None):
             hidden = convrnn(encoded_vec, hidden)
         # finally decode the final hidden state and calculate the loss
         output = decoder(hidden[0])
-        # torch.exp(output) will return the softmax scores before the log
-        loss = NLL(output, data["label"].to(device)).item()
+        # Convert binary labels to class indices: 0 for empty, 1 for occupied
+        label_tensor = data["label"].to(device).long()
+        loss = NLL(output, label_tensor).item()
         iou = calc_mean_IOU(
             torch.exp(output).detach().cpu().numpy(), data["label"].numpy(), 0.4
         )[5]

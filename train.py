@@ -139,12 +139,13 @@ print(
 import network
 
 # Detect available device
-# Note: MPS (Apple GPU) doesn't support Conv3D, so we use CPU if MPS is available
 if torch.cuda.is_available():
     device = torch.device("cuda")
     print("Using CUDA (GPU)")
+elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+    device = torch.device("mps")
+    print("Using MPS (Apple GPU)")
 else:
-    # Prefer CPU over MPS since Conv3D is not supported on MPS
     device = torch.device("cpu")
     print("Using CPU")
 
@@ -267,21 +268,55 @@ for epoch in range(last_epoch + 1, num_epochs + 1):
             encoded_vec = encoder(cur_view)
             hidden = convrnn(encoded_vec, hidden)
             if batch % 10 == 0:
-                x = vutils.make_grid(cur_view, nrow=1, normalize=True, scale_each=True)
-                writer.add_image("View " + str(v), x, it)
+                if cur_view.dim() == 3:
+                    cur_view_grid = cur_view.unsqueeze(0)
+                else:
+                    cur_view_grid = cur_view
+                cur_view_resized = torch.nn.functional.interpolate(
+                    cur_view_grid, size=(128, 128), mode="bilinear", align_corners=False
+                )
+                x = vutils.make_grid(
+                    cur_view_resized, nrow=4, normalize=True, scale_each=True
+                )
+                writer.add_image("View_" + str(v), x, it)
         # finally decode the final hidden state and calculate the loss
         output = decoder(hidden[0])
-        # torch.exp(output) will return the softmax scores before the log
+        # output shape: [batch, 2, 32, 32, 32] (log probabilities for 2 classes)
+        # Convert binary labels to class indices: 0 for empty, 1 for occupied
+        label_tensor = data["label"].to(device).long()  # [batch, 32, 32, 32]
 
-        loss = NLL(output, data["label"].to(device))
-        iou = calc_mean_IOU(
-            torch.exp(output).detach().cpu().numpy(), data["label"].numpy(), 0.4
-        )[5]
+        # NLLLoss expects: (N, C, d1, d2, d3) input and (N, d1, d2, d3) target
+        loss = NLL(output, label_tensor)
+        output_np = torch.exp(output).detach().cpu().numpy()
+        label_np = data["label"].numpy()
+        iou_results = calc_mean_IOU(output_np, label_np, 0.4)
+        iou = iou_results[5]
         if batch % 10 == 0:
             t2 = time.time()
             writer.add_scalar("loss", loss, it)
             writer.add_scalar("IOU", iou, it)
             writer.add_scalar("time per 10 iters", t2 - t1, it)
+            output_max = output_np.max()
+            output_min = output_np.min()
+            output_mean = output_np.mean()
+            output_class1_mean = output_np[:, 1, :, :, :].mean()
+            label_occupancy = label_np.mean()
+            num_fp = iou_results[3]
+            num_fn = iou_results[4]
+            print(f"  Batch {batch}: Loss={loss.item():.6f}, IOU={iou:.4f}")
+            print(
+                f"    Output stats: min={output_min:.4f}, max={output_max:.4f}, mean={output_mean:.4f}, class1_mean={output_class1_mean:.4f}"
+            )
+            print(
+                f"    Label occupancy: {label_occupancy:.4f}, FP={num_fp}, FN={num_fn}"
+            )
+            writer.add_scalar("Debug/output_max", output_max, it)
+            writer.add_scalar("Debug/output_min", output_min, it)
+            writer.add_scalar("Debug/output_mean", output_mean, it)
+            writer.add_scalar("Debug/class1_mean", output_class1_mean, it)
+            writer.add_scalar("Debug/label_occupancy", label_occupancy, it)
+            writer.add_scalar("Debug/false_positives", num_fp, it)
+            writer.add_scalar("Debug/false_negatives", num_fn, it)
             t1 = time.time()
         loss.backward()
         solver.step()
